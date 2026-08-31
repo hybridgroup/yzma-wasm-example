@@ -1,16 +1,7 @@
 //go:build js && wasm
 
-// A chat that runs entirely in the browser.
-//
-// llama.cpp is a WebAssembly module. This program drives it through the
-// pkg/llamawasm package of yzma, keeps the turns of the conversation, and sends
-// each piece of the answer to the page as it arrives.
-//
-// Build it with TinyGo:
-//
-//	tinygo build -target wasm -o build/yzma.wasm .
-//
-// See README.md for the rest.
+// Package main is a chat that runs a language model in the browser.
+// It drives llama.cpp through yzma and sends each piece of the answer to the page.
 package main
 
 import (
@@ -23,8 +14,7 @@ import (
 )
 
 const (
-	// modelPath is where the model goes in the filesystem of the llama.cpp
-	// module, once the page has downloaded it.
+	// modelPath is where the model goes in the filesystem of llama.cpp.
 	modelPath = "/models/model.gguf"
 
 	// defaultSystem opens a conversation until the page sends another one.
@@ -37,7 +27,7 @@ const (
 	defaultMaxTokens = 512
 )
 
-// A turn is one message of the conversation.
+// turn is one message of the conversation.
 type turn struct {
 	Role    string
 	Content string
@@ -68,7 +58,6 @@ func main() {
 	js.Global().Set("yzmaReset", js.FuncOf(reset))
 	js.Global().Set("yzmaSetSystem", js.FuncOf(setSystem))
 
-	// The page shows this in its system prompt box.
 	post("system", defaultSystem)
 	post("ready", backendReport())
 
@@ -103,9 +92,8 @@ func loadModel(this js.Value, args []js.Value) any {
 	return nil
 }
 
-// openModel(path) loads a model that is already in the filesystem of the
-// llama.cpp module. The page downloads one instead; a test puts it there
-// itself.
+// openModel(path) loads a model that is already in the filesystem of llama.cpp.
+// The page downloads one instead, but the test puts it there itself.
 func openModel(this js.Value, args []js.Value) any {
 	path := modelPath
 	if len(args) > 0 && args[0].Truthy() {
@@ -123,8 +111,8 @@ func open(path string) {
 
 	params := llamawasm.ModelDefaultParams()
 
-	// A build with WebGPU has a device, so put every layer on it. A build on the
-	// CPU has none, and the value does nothing there.
+	// A build with WebGPU has a device, so put every layer on it.
+	// A build on the CPU has none, and the value does nothing.
 	if llamawasm.GPUDevice() != "" {
 		params.NGpuLayers = 999
 	}
@@ -146,8 +134,8 @@ func open(path string) {
 
 	vocab = llamawasm.ModelGetVocab(model)
 
-	// One sampler for the whole conversation. A chat wants some variety, which
-	// is what this chain gives and the greedy sampler does not.
+	// One sampler for the whole conversation. This chain gives the variety
+	// that a chat needs and the greedy sampler does not.
 	if sampler != 0 {
 		llamawasm.SamplerFree(sampler)
 	}
@@ -160,8 +148,7 @@ func open(path string) {
 
 	history = history[:1]
 
-	// A base model has no chat template, and the answers of one in a chat are
-	// poor. Say so rather than letting the reader wonder.
+	// A base model has no chat template, and its answers in a chat are poor.
 	if llamawasm.ModelChatTemplate(model, "") == "" {
 		post("status", "this model has no chat template, so the answers will wander")
 	}
@@ -227,8 +214,8 @@ func ask(this js.Value, args []js.Value) any {
 			return
 		}
 
-		// The whole conversation goes in again each turn, so the state of the
-		// last one has to go.
+		// The whole conversation goes in again each turn, so the state of
+		// the last turn has to go.
 		if err := llamawasm.MemoryClear(ctx, true); err != nil {
 			post("error", err.Error())
 			return
@@ -277,27 +264,23 @@ func ask(this js.Value, args []js.Value) any {
 	return nil
 }
 
-// prompt puts the conversation into the chat format of the model and tokenizes
-// it. It drops the oldest turns until what is left has room for an answer.
-//
-// ChatApplyTemplate takes one message at a time, so a conversation is the
-// messages one after another, with the opening of the turn of the assistant on
-// the last one. That is what makes the model answer instead of carrying on.
+// prompt puts the conversation into the chat format of the model and tokenizes it.
+// It drops the oldest turns until what is left has room for an answer.
 func prompt(maxTokens int32) []llamawasm.Token {
 	for {
 		var text strings.Builder
 		for i, message := range history {
 			formatted, err := llamawasm.ChatApplyTemplate(model, message.Role, message.Content, i == len(history)-1)
 			if err != nil {
-				// A model with no template, or a build of llama.cpp too old to
-				// have the call. The bare question is the best that is left.
+				// The model has no template, or llama.cpp is too old to have
+				// the call. The bare question is all that is left.
 				return llamawasm.Tokenize(vocab, history[len(history)-1].Content, true, false)
 			}
 			text.WriteString(formatted)
 		}
 
-		// parseSpecial has to be true, or the markers of the template tokenize
-		// as ordinary text and the model never sees the shape of a chat.
+		// parseSpecial has to be true, or the markers of the template
+		// tokenize as ordinary text and the model sees no chat.
 		tokens := llamawasm.Tokenize(vocab, text.String(), true, true)
 
 		if int32(len(tokens)) <= nCtx-maxTokens || len(history) <= 2 {
@@ -313,8 +296,7 @@ func prompt(maxTokens int32) []llamawasm.Token {
 	}
 }
 
-// post sends a message to whatever holds this module. In a Web Worker that is
-// the page, and in Node it is the harness.
+// post sends a message to the page in a Web Worker, or to the harness in Node.
 func post(kind, text string) {
 	message := map[string]any{"kind": kind, "text": text}
 

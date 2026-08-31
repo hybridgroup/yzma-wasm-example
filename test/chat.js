@@ -1,9 +1,5 @@
-// chat.js holds a two turn conversation with the WebAssembly build, in Node,
-// without a browser.
-//
-// It stands in for the page and for yzma-loader.js. The point of it is the
-// chat template: the Go side puts the conversation together one message at a
-// time, and the only way to see that it came out right is to read an answer.
+// chat.js holds a two turn conversation in Node, with no browser.
+// It tests the chat template, which is correct if the answers make sense.
 //
 // Usage:
 //   node test/chat.js --dir build --model ~/models/some-instruct-model.gguf \
@@ -34,8 +30,7 @@ if (!modelFile) {
 let onMessage = () => {};
 globalThis.yzmaOnMessage = (message) => onMessage(message);
 
-// waitFor resolves on the first message of one of these kinds, and prints the
-// tokens as they arrive.
+// waitFor resolves on the first message of one of these kinds.
 function waitFor(...kinds) {
   return new Promise((resolve) => {
     let text = "";

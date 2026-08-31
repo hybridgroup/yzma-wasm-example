@@ -6,11 +6,8 @@
     <title>yzma chat</title>
     <link rel="icon" href="data:," />
 
-    <!-- GitHub Pages cannot send the Cross-Origin-Opener-Policy and
-         Cross-Origin-Embedder-Policy headers, and without them a browser gives
-         the page no SharedArrayBuffer and llama.cpp runs on one thread. This
-         service worker adds the headers and reloads the page once, which is
-         what lets yzma-loader.js take the build with every thread. -->
+    <!-- GitHub Pages cannot send the COOP and COEP headers, so the page gets
+         no SharedArrayBuffer. This service worker adds them. -->
     <script src="coi-serviceworker.js"></script>
 
     <link rel="stylesheet" href="min.css" />
@@ -38,7 +35,7 @@
         margin-top: 10px;
         width: 100%;
       }
-      /* An id beats the [hidden] rule of the browser, so say it again here. */
+      /* An id beats the [hidden] rule of the browser, so say it again. */
       #bar[hidden] { display: none; }
       #bar::-webkit-progress-bar { background: #eee; border-radius: 5px; }
       #bar::-webkit-progress-value { background: #0ae; border-radius: 5px; }
@@ -117,8 +114,7 @@
       const $ = (id) => document.getElementById(id);
       const transcript = $("transcript");
 
-      // ?mode=cpu or ?mode=webgpu on the page passes through to the worker,
-      // which lets a reader compare the two backends.
+      // ?mode=cpu or ?mode=webgpu passes through to the worker.
       const mode = new URLSearchParams(location.search).get("mode");
       const worker = new Worker("./worker.js" + (mode ? "?mode=" + encodeURIComponent(mode) : ""));
 
