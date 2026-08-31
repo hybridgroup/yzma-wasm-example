@@ -1,10 +1,14 @@
 # Local chat with a model in a browser using yzma
 
-[![yzma logo](https://raw.githubusercontent.com/hybridgroup/yzma/refs/heads/main/images/yzma-logo-full-color-small.png)](https://github.com/hybridgroup/yzma)
+![yzma in browser](./images/yzma-in-browser.png)
 
 A chat page where the whole language model runs in the tab. No server, no API key, nothing sent anywhere.
 
 **<https://hybridgroup.github.io/yzma-wasm-example/>**
+
+## How it works
+
+[![yzma logo](https://raw.githubusercontent.com/hybridgroup/yzma/refs/heads/main/images/yzma-logo-full-color-small.png)](https://github.com/hybridgroup/yzma)
 
 The code is written in Go and compiled by TinyGo. Using the [yzma](https://github.com/hybridgroup/yzma) package, the web page runs [llama.cpp](https://github.com/ggml-org/llama.cpp), which has been compiled into a WebAssembly module. It all runs in a local Web Worker for best browser performance.
 
