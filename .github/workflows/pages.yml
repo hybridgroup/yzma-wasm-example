@@ -1,7 +1,5 @@
 # Build the page with TinyGo and put it on GitHub Pages.
-#
-# Nothing binary lives in the repo. The WebAssembly builds of llama.cpp come
-# down here, and the Go program is compiled here.
+# Nothing binary lives in the repo, so llama.cpp comes down here.
 name: pages
 
 on:
@@ -29,8 +27,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      # TinyGo 0.41.1 works with Go 1.26 and not with Go 1.27. Go back to
-      # 'stable' after the release of TinyGo that adds Go 1.27.
+      # TinyGo 0.41.1 works with Go 1.26 and not with Go 1.27. Use 'stable'
+      # again after a release of TinyGo that adds Go 1.27.
       - name: Install Go
         uses: actions/setup-go@v6
         with:
