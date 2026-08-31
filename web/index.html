@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>yzma chat</title>
+    <link rel="icon" href="data:," />
 
     <!-- GitHub Pages cannot send the Cross-Origin-Opener-Policy and
          Cross-Origin-Embedder-Policy headers, and without them a browser gives
@@ -49,10 +50,7 @@
 
     <div class="container">
       <p>
-        A whole language model in this browser tab. llama.cpp is a WebAssembly
-        module, the program that drives it is Go compiled by TinyGo, and
-        <a href="https://github.com/hybridgroup/yzma">yzma</a> joins the two.
-        Nothing is sent anywhere.
+        The code is Go, compiled by TinyGo. Using the <a target="_blank" href="https://github.com/hybridgroup/yzma">yzma</a> package, the web page runs <a target="_blank" href="https://github.com/ggml-org/llama.cpp">llama.cpp</a>, which has been compiled into a WebAssembly module. It all runs in a local Web Worker for best browser performance.
       </p>
 
       <div class="setup">
@@ -154,7 +152,7 @@
         ready = false;
         busy(true);
         transcript.replaceChildren();
-        status("downloading the model");
+        status("waiting for the worker");
         worker.postMessage({ kind: "load", url: $("model").value.trim() });
       };
 
