@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>yzma chat</title>
+
+    <!-- GitHub Pages cannot send the Cross-Origin-Opener-Policy and
+         Cross-Origin-Embedder-Policy headers, and without them a browser gives
+         the page no SharedArrayBuffer and llama.cpp runs on one thread. This
+         service worker adds the headers and reloads the page once, which is
+         what lets yzma-loader.js take the build with every thread. -->
+    <script src="coi-serviceworker.js"></script>
+
+    <link rel="stylesheet" href="min.css" />
+    <style>
+      body { color: #222; }
+      .container { max-width: 46rem; }
+      .nav { padding: 11px 20px 15px; }
+      .nav .pagename { font-weight: 700; }
+      .nav .backend { color: #aaa; float: right; font-size: 13px; top: 4px; position: relative; }
+
+      .setup { display: flex; gap: 8px; align-items: center; margin: 1.5em 0 0.5em; }
+      .setup input { flex: 1; width: auto; }
+
+      #transcript { margin: 1em 0; }
+      #transcript:empty::after {
+        content: "Load a model, then say something.";
+        color: #999;
+      }
+      .msg { margin-bottom: 0.75em; white-space: pre-wrap; overflow-wrap: anywhere; }
+      .msg.you { background: #eee; border-left-color: #999; }
+
+      .compose { display: flex; gap: 8px; align-items: flex-start; }
+      .compose textarea { flex: 1; width: auto; resize: vertical; }
+
+      #status { color: #777; font-size: 13px; margin: 0.75em 0 1.5em; min-height: 1.2em; }
+      #status.bad { color: #d33; }
+    </style>
+  </head>
+
+  <body>
+    <div class="nav">
+      <div class="container">
+        <span class="pagename">yzma chat</span>
+        <span class="backend" id="backend">looking for a backend</span>
+      </div>
+    </div>
+
+    <div class="container">
+      <p>
+        A whole language model in this browser tab. llama.cpp is a WebAssembly
+        module, the program that drives it is Go compiled by TinyGo, and
+        <a href="https://github.com/hybridgroup/yzma">yzma</a> joins the two.
+        Nothing is sent anywhere.
+      </p>
+
+      <div class="setup">
+        <input
+          id="model"
+          type="text"
+          aria-label="Model URL"
+          value="https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
+        />
+        <button id="load" class="btn btn-a btn-sm">Load</button>
+      </div>
+
+      <div id="transcript"></div>
+
+      <div class="compose">
+        <textarea id="prompt" rows="2" aria-label="Message" placeholder="Ask something"></textarea>
+        <button id="send" class="btn btn-a btn-sm" disabled>Send</button>
+        <button id="reset" class="btn btn-sm" disabled>New</button>
+      </div>
+
+      <div id="status">starting</div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const transcript = $("transcript");
+
+      // ?mode=cpu or ?mode=webgpu on the page passes through to the worker,
+      // which lets a reader compare the two backends.
+      const mode = new URLSearchParams(location.search).get("mode");
+      const worker = new Worker("./worker.js" + (mode ? "?mode=" + encodeURIComponent(mode) : ""));
+
+      let answer = null; // the bubble that the tokens are going into
+      let ready = false; // a model is loaded
+
+      function say(who, text) {
+        const bubble = document.createElement("div");
+        bubble.className = who === "you" ? "msg you" : "msg";
+        bubble.textContent = text;
+        transcript.appendChild(bubble);
+        bubble.scrollIntoView({ block: "end" });
+        return bubble;
+      }
+
+      function status(text, bad) {
+        $("status").textContent = text;
+        $("status").className = bad ? "bad" : "";
+      }
+
+      // busy turns the controls off while the model is thinking, and back on
+      // when it stops.
+      function busy(yes) {
+        $("send").disabled = yes || !ready;
+        $("reset").disabled = yes || !ready;
+        $("load").disabled = yes;
+      }
+
+      worker.onmessage = (event) => {
+        const { kind, text } = event.data || {};
+        switch (kind) {
+          case "ready":
+            $("backend").textContent = text;
+            status("ready, load a model");
+            break;
+          case "status":
+            status(text);
+            break;
+          case "progress":
+            status("downloading the model: " + text);
+            break;
+          case "loaded":
+            ready = true;
+            busy(false);
+            status(text);
+            break;
+          case "token":
+            if (!answer) answer = say("them", "");
+            answer.textContent += text;
+            answer.scrollIntoView({ block: "end" });
+            break;
+          case "done":
+            answer = null;
+            busy(false);
+            status(text);
+            break;
+          case "reset":
+            transcript.replaceChildren();
+            status("new conversation");
+            break;
+          case "error":
+            answer = null;
+            busy(false);
+            status(text, true);
+            break;
+        }
+      };
+
+      $("load").onclick = () => {
+        ready = false;
+        busy(true);
+        transcript.replaceChildren();
+        status("downloading the model");
+        worker.postMessage({ kind: "load", url: $("model").value.trim() });
+      };
+
+      function send() {
+        const text = $("prompt").value.trim();
+        if (!text || !ready) return;
+
+        say("you", text);
+        $("prompt").value = "";
+        answer = null;
+        busy(true);
+        status("thinking");
+        worker.postMessage({ kind: "ask", text });
+      }
+
+      $("send").onclick = send;
+      $("reset").onclick = () => worker.postMessage({ kind: "reset" });
+
+      // Enter sends, shift-Enter makes a new line.
+      $("prompt").onkeydown = (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          send();
+        }
+      };
+    </script>
+  </body>
+</html>
