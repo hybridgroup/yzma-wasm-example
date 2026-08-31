@@ -8,10 +8,11 @@
 //
 //   { kind: "load",  url: "<model URL>" }
 //   { kind: "ask",   text: "<question>" }
+//   { kind: "system", text: "<system prompt>" }
 //   { kind: "reset" }
 //
 // The worker sends back { kind, text } messages, where kind is one of ready,
-// status, progress, loaded, token, done, reset, or error.
+// status, progress, loaded, token, done, reset, system, or error.
 
 // The build of llama.cpp with more than one thread starts each of its threads
 // by running this very script again. Emscripten spawns a thread with
@@ -103,6 +104,9 @@ if (!isThread) {
           break;
         case "ask":
           self.yzmaAsk(message.text);
+          break;
+        case "system":
+          self.yzmaSetSystem(message.text);
           break;
         case "reset":
           self.yzmaReset();
