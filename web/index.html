@@ -17,23 +17,51 @@
     <style>
       body { color: #222; }
       .container { max-width: 46rem; }
-      .nav { padding: 11px 20px 15px; }
-      .nav .pagename { font-weight: 700; }
-      .nav .backend { color: #aaa; float: right; font-size: 13px; top: 4px; position: relative; }
 
-      .setup { display: flex; gap: 8px; align-items: center; margin: 1.5em 0 0.5em; }
-      .setup input { flex: 1; width: auto; }
+      .nav { padding: 14px 20px 18px; height: auto; }
+      .nav .pagename { font-size: 28px; font-weight: 700; top: 0; }
+      .nav .backend { color: #aaa; float: right; font-size: 13px; top: 12px; position: relative; }
 
-      #transcript { margin: 1em 0; }
+      h2 { font-size: 1.4em; margin: 1.4em 0 0.4em; }
+
+      .setup { display: flex; gap: 8px; align-items: center; }
+      .setup input { flex: 1; width: auto; font-size: 15px; }
+
+      /* min.css does not dim a button that the page turned off. */
+      .btn:disabled, .btn:disabled:hover { background: #ccc; cursor: default; }
+
+      #bar {
+        appearance: none;
+        border: 0;
+        display: block;
+        height: 10px;
+        margin-top: 10px;
+        width: 100%;
+      }
+      /* An id beats the [hidden] rule of the browser, so say it again here. */
+      #bar[hidden] { display: none; }
+      #bar::-webkit-progress-bar { background: #eee; border-radius: 5px; }
+      #bar::-webkit-progress-value { background: #0ae; border-radius: 5px; }
+      #bar::-moz-progress-bar { background: #0ae; border-radius: 5px; }
+
+      #system { width: 100%; box-sizing: border-box; font-size: 15px; resize: vertical; }
+
+      #transcript { margin: 0.6em 0; }
       #transcript:empty::after {
         content: "Load a model, then say something.";
         color: #999;
       }
-      .msg { margin-bottom: 0.75em; white-space: pre-wrap; overflow-wrap: anywhere; }
+      .msg {
+        font-size: 17px;
+        line-height: 1.55;
+        margin-bottom: 0.75em;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
       .msg.you { background: #eee; border-left-color: #999; }
 
       .compose { display: flex; gap: 8px; align-items: flex-start; }
-      .compose textarea { flex: 1; width: auto; resize: vertical; }
+      .compose textarea { flex: 1; width: auto; font-size: 16px; resize: vertical; }
 
       #status { color: #777; font-size: 13px; margin: 0.75em 0 1.5em; min-height: 1.2em; }
       #status.bad { color: #d33; }
@@ -53,6 +81,8 @@
         The code is written in <a target="_blank" href="https://golang.org/">Go</a> and compiled by <a target="_blank" href="https://tinygo.org/">TinyGo</a>. Using the <a target="_blank" href="https://github.com/hybridgroup/yzma">yzma</a> package, the web page runs <a target="_blank" href="https://github.com/ggml-org/llama.cpp">llama.cpp</a>, which has been compiled into a WebAssembly module. It all runs in a local Web Worker for best browser performance.
       </p>
 
+      <h2>Model</h2>
+
       <div class="setup">
         <input
           id="model"
@@ -62,6 +92,15 @@
         />
         <button id="load" class="btn btn-a btn-sm">Load</button>
       </div>
+
+      <progress id="bar" max="100" value="0" hidden></progress>
+
+      <h2>System prompt</h2>
+
+      <textarea id="system" rows="2" aria-label="System prompt"
+        placeholder="Tell the model how to answer"></textarea>
+
+      <h2>Chat</h2>
 
       <div id="transcript"></div>
 
@@ -83,8 +122,9 @@
       const mode = new URLSearchParams(location.search).get("mode");
       const worker = new Worker("./worker.js" + (mode ? "?mode=" + encodeURIComponent(mode) : ""));
 
-      let answer = null; // the bubble that the tokens are going into
+      let answer = null; // the bubble that the tokens go into
       let ready = false; // a model is loaded
+      let downloading = false;
 
       function say(who, text) {
         const bubble = document.createElement("div");
@@ -100,12 +140,17 @@
         $("status").className = bad ? "bad" : "";
       }
 
-      // busy turns the controls off while the model is thinking, and back on
-      // when it stops.
+      // bar shows how much of the model came down. A percent of -1 hides it.
+      function bar(percent) {
+        $("bar").hidden = percent < 0;
+        $("bar").value = percent < 0 ? 0 : percent;
+      }
+
+      // busy turns the controls off while the model works.
       function busy(yes) {
         $("send").disabled = yes || !ready;
         $("reset").disabled = yes || !ready;
-        $("load").disabled = yes;
+        $("load").disabled = yes || downloading;
       }
 
       worker.onmessage = (event) => {
@@ -115,14 +160,20 @@
             $("backend").textContent = text;
             status("ready, load a model");
             break;
+          case "system":
+            $("system").value = text;
+            break;
           case "status":
             status(text);
             break;
           case "progress":
-            status("downloading the model: " + text);
+            bar(parseInt(text, 10));
+            status("downloading the model " + text);
             break;
           case "loaded":
             ready = true;
+            downloading = false;
+            bar(-1);
             busy(false);
             status(text);
             break;
@@ -142,6 +193,8 @@
             break;
           case "error":
             answer = null;
+            downloading = false;
+            bar(-1);
             busy(false);
             status(text, true);
             break;
@@ -149,9 +202,13 @@
       };
 
       $("load").onclick = () => {
+        if (downloading) return;
+
         ready = false;
-        busy(true);
+        downloading = true;
         transcript.replaceChildren();
+        bar(0);
+        busy(true);
         status("waiting for the worker");
         worker.postMessage({ kind: "load", url: $("model").value.trim() });
       };
@@ -165,11 +222,17 @@
         answer = null;
         busy(true);
         status("thinking");
+
+        // The system prompt can change between one question and the next.
+        worker.postMessage({ kind: "system", text: $("system").value });
         worker.postMessage({ kind: "ask", text });
       }
 
       $("send").onclick = send;
-      $("reset").onclick = () => worker.postMessage({ kind: "reset" });
+      $("reset").onclick = () => {
+        worker.postMessage({ kind: "system", text: $("system").value });
+        worker.postMessage({ kind: "reset" });
+      };
 
       // Enter sends, shift-Enter makes a new line.
       $("prompt").onkeydown = (event) => {

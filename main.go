@@ -27,8 +27,8 @@ const (
 	// module, once the page has downloaded it.
 	modelPath = "/models/model.gguf"
 
-	// systemPrompt opens every conversation and survives a reset.
-	systemPrompt = "You are a helpful assistant running inside a web browser. Keep your answers short."
+	// defaultSystem opens a conversation until the page sends another one.
+	defaultSystem = "You are a helpful assistant running inside a web browser. Keep your answers short."
 
 	nCtx   = 4096
 	nBatch = 512
@@ -49,7 +49,7 @@ var (
 	vocab   llamawasm.Vocab
 	sampler llamawasm.Sampler
 
-	history = []turn{{Role: "system", Content: systemPrompt}}
+	history = []turn{{Role: "system", Content: defaultSystem}}
 )
 
 func main() {
@@ -66,7 +66,10 @@ func main() {
 	js.Global().Set("yzmaOpenModel", js.FuncOf(openModel))
 	js.Global().Set("yzmaAsk", js.FuncOf(ask))
 	js.Global().Set("yzmaReset", js.FuncOf(reset))
+	js.Global().Set("yzmaSetSystem", js.FuncOf(setSystem))
 
+	// The page shows this in its system prompt box.
+	post("system", defaultSystem)
 	post("ready", backendReport())
 
 	// Keep the program alive so that the page can call into it.
@@ -172,6 +175,21 @@ func backendReport() string {
 		return fmt.Sprintf("backend: %s (%s)", llamawasm.Backend(), device)
 	}
 	return fmt.Sprintf("backend: %s, %d threads", llamawasm.Backend(), llamawasm.Threads())
+}
+
+// setSystem(text) replaces the system message. An empty text gives the default
+// one back. The next answer uses it.
+func setSystem(this js.Value, args []js.Value) any {
+	text := defaultSystem
+	if len(args) > 0 && args[0].Truthy() {
+		if trimmed := strings.TrimSpace(args[0].String()); trimmed != "" {
+			text = trimmed
+		}
+	}
+
+	history[0] = turn{Role: "system", Content: text}
+
+	return nil
 }
 
 // reset() forgets the conversation and starts again from the system message.

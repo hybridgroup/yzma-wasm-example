@@ -79,6 +79,9 @@ The line at the top right of the page says which build won. Force one with
 
 ## Notes
 
+- The system prompt box tells the model how to answer. The page sends it with
+  each question, so a change applies to the next answer. An empty box gives the
+  default prompt back.
 - The model has to be smaller than 2 GB. One JavaScript ArrayBuffer holds no
   more, so anything larger has to be in GGUF splits.
 - Use a model with a chat template. A base model has none, and the page says so,
