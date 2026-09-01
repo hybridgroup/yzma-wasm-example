@@ -21,18 +21,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      TINYGO_VERSION: '0.41.1'
+      TINYGO_VERSION: '0.42.0'
       BUILD_DIR: build
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      # TinyGo 0.41.1 works with Go 1.26 and not with Go 1.27. Use 'stable'
-      # again after a release of TinyGo that adds Go 1.27.
       - name: Install Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26'
+          go-version: 'stable'
 
       - name: Check the WebAssembly code
         run: make check
