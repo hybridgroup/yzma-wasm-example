@@ -1,9 +1,14 @@
-# Local chat with a model in a browser using yzma
+# 100% local chat with a model in your browser using WebAssembly written in Go
 
-![yzma in browser](./images/yzma-in-browser.png)
+[![yzma in browser](./images/yzma-in-browser.png)](https://hybridgroup.github.io/yzma-wasm-example)
 
-A chat page that runs the language model in the browser tab. There is no server,
-no API key, and no data goes anywhere.
+A chat page that runs the language model completely in the local browser using WebAssembly. There is no server, no API key, and no data goes anywhere. Written in Go using [yzma](https://github.com/hybridgroup/yzma) on [TinyGo](http://tinygo.org).
+
+**<https://hybridgroup.github.io/yzma-wasm-example/>**
+
+### Does it run on mobile? Yes.
+
+[![yzma in browser](./images/yzma-on-android.jpeg)](https://hybridgroup.github.io/yzma-wasm-example)
 
 **<https://hybridgroup.github.io/yzma-wasm-example/>**
 
