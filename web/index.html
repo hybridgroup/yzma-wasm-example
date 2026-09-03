@@ -76,7 +76,7 @@
     <div class="container">
       <p>
         This page runs a language model completely in the local browser using WebAssembly. There is no server, no API key, and no data goes anywhere.
-        It computes on the GPU with WebGPU when the browser gives one, and on the CPU when it does not. Chrome, Edge, and Firefox can all give WebGPU.
+        It computes on the GPU with WebGPU when the browser gives one, and on the CPU when it does not. Chrome and Edge give WebGPU. Firefox uses the CPU here, because llama.cpp computes wrong values with WebGPU in that browser.
         Written in Go using <a target="_blank" href="https://github.com/hybridgroup/yzma">yzma</a> on <a target="_blank" href="https://tinygo.org/">TinyGo</a>.
         <a target="_blank" href="https://github.com/hybridgroup/yzma-wasm-example">Source code is available here</a>.
       </p>

@@ -254,6 +254,13 @@ func ask(this js.Value, args []js.Value) any {
 
 		history = append(history, turn{Role: "assistant", Content: answer.String()})
 
+		// A model that stops at the first token gives nothing to read. Say so,
+		// because a count of zero alone looks like the page did nothing.
+		if count == 0 {
+			post("error", "the model gave no answer, so the backend may compute wrong values")
+			return
+		}
+
 		if elapsed := time.Since(start).Seconds(); elapsed > 0 {
 			post("done", fmt.Sprintf("%d tokens, %.1f tokens/s", count, float64(count)/elapsed))
 			return
