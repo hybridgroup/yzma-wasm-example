@@ -1,11 +1,12 @@
 # Build the page into build/, then serve it.
-# The first build downloads about 20 MB of llama.cpp, and then caches it.
+# The first build downloads about 13 MB of llama.cpp, and then caches it.
 
 BUILD_DIR ?= build
 PORT ?= 8080
 
-# The version of llama.cpp that the current release of yzma is built against.
-LLAMA_VERSION ?= $(shell curl -s https://hybridgroup.github.io/llama-cpp-builder/version.json | jq -r .tag_name)
+# The build of llama.cpp from llama-cpp-builder. "latest" takes the newest
+# one. Name a tag such as b10780 to pin it.
+LLAMA_VERSION ?= latest
 
 # Take yzma-loader.js from the module that go.mod pins, not from a copy
 # here that can drift.
@@ -29,7 +30,7 @@ build: llama.cpp program assets
 llama.cpp:
 	go install github.com/hybridgroup/yzma@$(YZMA_VERSION)
 	mkdir -p $(BUILD_DIR)
-	$(YZMA) install -lib $(BUILD_DIR) -os wasm $(if $(LLAMA_VERSION),-version $(LLAMA_VERSION))
+	$(YZMA) install -lib $(BUILD_DIR) -os wasm -version $(LLAMA_VERSION)
 
 program:
 	mkdir -p $(BUILD_DIR)
