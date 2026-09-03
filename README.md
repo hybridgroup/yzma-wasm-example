@@ -2,7 +2,7 @@
 
 [![yzma in browser](./images/yzma-in-browser.png)](https://hybridgroup.github.io/yzma-wasm-example)
 
-A chat page that runs the language model completely in the local browser using WebAssembly. There is no server, no API key, and no data goes anywhere. Written in Go using [yzma](https://github.com/hybridgroup/yzma) on [TinyGo](http://tinygo.org).
+A chat page that runs the language model completely in the local browser using WebAssembly. There is no server, no API key, and no data goes anywhere. It computes on the GPU with WebGPU when the browser gives one, and on the CPU when it does not. Written in Go using [yzma](https://github.com/hybridgroup/yzma) on [TinyGo](http://tinygo.org).
 
 **<https://hybridgroup.github.io/yzma-wasm-example/>**
 
@@ -38,7 +38,7 @@ again.
 ## Build and run
 
 You need [TinyGo](https://tinygo.org/getting-started/install/) 0.41 or later, Go
-1.26, `jq`, and `node` for the test.
+1.26, and `node` for the test.
 
 ```
 make build
@@ -51,8 +51,16 @@ model. The default model is
 It is approximately 400 MB, and the browser caches it. You can use any GGUF URL
 if the host sends CORS headers. Hugging Face sends them.
 
-`make build` downloads approximately 14 MB of llama.cpp into `build/`, compiles
+`make build` downloads approximately 13 MB of llama.cpp into `build/`, compiles
 the Go program, and copies the page. No binary files are in the repository.
+
+The download comes from
+[llama-cpp-builder](https://github.com/hybridgroup/llama-cpp-builder) and takes
+the newest build. To pin a build, name its tag.
+
+```
+make build LLAMA_VERSION=b10780
+```
 
 ## The test
 
@@ -64,16 +72,21 @@ sensible answer shows that the chat template is correct.
 make test MODEL=~/models/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf
 ```
 
-## Threads and the service worker
+## WebGPU, threads, and the service worker
 
 llama.cpp has three WebAssembly builds. `yzma-loader.js` selects the best build
 that the browser can run.
 
 | Build | What it needs |
 | --- | --- |
-| `yzma_wasm_webgpu` | WebGPU with f16 shaders, and JSPI. Chrome and Edge 137 and later. |
+| `yzma_wasm_webgpu` | WebGPU with f16 shaders, and JSPI. Chrome and Edge 137 or later, or Firefox 153 or later with two switches. |
 | `yzma_wasm_mt` | `SharedArrayBuffer`, thus a page with the COOP and COEP headers. |
 | `yzma_wasm` | Nothing. It runs everywhere. |
+
+The WebGPU build computes on the GPU and is the fastest of the three. It needs
+an adapter with `shader-f16` and it needs JSPI, thus a page can have WebGPU
+while llama.cpp still has no device. In that case the loader goes to the CPU,
+because a slow page is better than a page that does not run.
 
 GitHub Pages cannot send the COOP and COEP headers. Without help, the browser
 gives the page no `SharedArrayBuffer`, and llama.cpp runs on one thread. In Node
@@ -91,7 +104,29 @@ Cross origin isolation makes it necessary for the model to come from a host that
 sends CORS headers. Hugging Face sends them.
 
 The line at the top right of the page shows the selected build. To force a
-build, add `?mode=cpu` or `?mode=webgpu` to the URL.
+build, add `?mode=cpu` or `?mode=webgpu` to the URL. With `?mode=webgpu` the
+console of the worker says which part is missing when the loader goes to the
+CPU.
+
+### Firefox
+
+Firefox runs the WebGPU build. WebGPU is not yet on by default, thus set both of
+these in `about:config` and start the browser again.
+
+| Switch | Why |
+| --- | --- |
+| `dom.webgpu.enabled` | WebGPU on Linux is still behind this switch. |
+| `dom.webgpu.workers.enabled` | llama.cpp loads in the worker, thus WebGPU in the page alone is not sufficient. |
+
+JSPI came in Firefox 153, thus 153 or later needs no switch for it. Firefox 153
+or later with the two switches shows `backend: webgpu` on the page.
+
+Firefox gives an empty `adapter.info`, thus the page shows the plain word
+`webgpu` and no name for the card. This is not a failure. Firefox also gives no
+subgroups, thus llama.cpp takes the plain f16 shaders and the same card is
+slower than it is in Chrome.
+
+The two CPU builds run in Firefox with no switch at all.
 
 ## Notes
 
@@ -110,6 +145,12 @@ build, add `?mode=cpu` or `?mode=webgpu` to the URL.
 - A discrete NVIDIA card does not give f16 shaders in Chrome. Such a machine
   falls back to the CPU unless you start Chrome with
   `--enable-dawn-features=vulkan_enable_f16_on_nvidia`.
+- Firefox uses wgpu and Chrome uses Dawn, thus the two do not always give the
+  same adapter or the same features on one machine. On a machine with two cards,
+  `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia firefox` or
+  `MESA_VK_DEVICE_SELECT=<vendor>:<device> firefox` selects the card.
+- The [yzma WebAssembly guide](https://github.com/hybridgroup/yzma/blob/main/wasm/README.md)
+  holds more on the backends, the browsers, and the speed of each one.
 
 ## Deploying
 
