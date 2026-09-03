@@ -2,7 +2,7 @@
 
 [![yzma in browser](./images/yzma-in-browser.png)](https://hybridgroup.github.io/yzma-wasm-example)
 
-A chat page that runs the language model completely in the local browser using WebAssembly. There is no server, no API key, and no data goes anywhere. It computes on the GPU with WebGPU when the browser gives one, and on the CPU when it does not. Written in Go using [yzma](https://github.com/hybridgroup/yzma) on [TinyGo](http://tinygo.org).
+A chat page that runs the GGUF language model completely in the local browser using WebAssembly. There is no server, no API key, and no data goes anywhere. Uses GPU with WebGPU when available, otherwise uses CPU. Chrome and Edge have WebGPU support, Firefox currently CPU only. Written in Go using [yzma](https://github.com/hybridgroup/yzma) on [TinyGo](http://tinygo.org).
 
 **<https://hybridgroup.github.io/yzma-wasm-example/>**
 
