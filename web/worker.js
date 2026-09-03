@@ -14,8 +14,16 @@ self.yzmaBase = ".";
 // The page chooses the backend with a query on the URL of this worker.
 // yzma-loader.js takes the values auto, webgpu, or cpu.
 const workerQuery = new URLSearchParams((self.location.search || "").slice(1));
+
+// llama.cpp computes wrong values with WebGPU in Firefox, and the model then
+// stops before the first word. The CPU is the choice there until that is
+// repaired. ?mode=webgpu still gives the GPU, thus a test of the repair is easy.
+const isFirefox = /firefox/i.test((self.navigator && self.navigator.userAgent) || "");
+
 if (workerQuery.get("mode")) {
   self.yzmaMode = workerQuery.get("mode");
+} else if (isFirefox) {
+  self.yzmaMode = "cpu";
 }
 
 // A thread has no choice to make. This keeps it from asking the browser
