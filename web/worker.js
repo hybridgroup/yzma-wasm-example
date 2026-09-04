@@ -2,8 +2,9 @@
 // Every call into llama.cpp is synchronous, so this work would stop the page.
 //
 // The page sends { kind, url } or { kind, text } messages of kind load, ask,
-// system, or reset. The worker sends back { kind, text } messages of kind
-// ready, status, progress, loaded, token, done, reset, system, or error.
+// system, thinking, or reset. The worker sends back { kind, text } messages of
+// kind ready, status, progress, loaded, token, think, done, reset, system, or
+// error.
 
 // The build with more than one thread runs this script again for each thread.
 // Such a worker has the name "em-pthread" and must only load llama.cpp.
@@ -92,6 +93,9 @@ if (!isThread) {
           break;
         case "system":
           self.yzmaSetSystem(message.text);
+          break;
+        case "thinking":
+          self.yzmaSetThinking(message.on);
           break;
         case "reset":
           self.yzmaReset();
