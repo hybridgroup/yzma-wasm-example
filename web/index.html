@@ -23,6 +23,12 @@
 
       .setup { display: flex; gap: 8px; align-items: center; }
       .setup input { flex: 1; width: auto; font-size: 15px; }
+      .setup select { flex: 1; width: auto; font-size: 15px; margin: 0; }
+      .setup + .setup { margin-top: 8px; }
+
+      .think-toggle { display: block; font-size: 15px; margin-top: 10px; }
+      .think-toggle input { margin-right: 6px; vertical-align: -1px; }
+      .think-toggle .hint { color: #999; font-size: 13px; }
 
       /* min.css does not dim a button that the page turned off. */
       .btn:disabled, .btn:disabled:hover { background: #ccc; cursor: default; }
@@ -57,6 +63,25 @@
       }
       .msg.you { background: #eee; border-left-color: #999; }
 
+      /* The thoughts of the model are quieter than the reply, and they fold
+         away because they can run long. */
+      .thoughts {
+        background: #fafafa;
+        border-left: 3px solid #ddd;
+        margin-bottom: 0.75em;
+        padding: 8px 12px;
+      }
+      .thoughts summary { color: #999; cursor: pointer; font-size: 13px; }
+      .thoughts .text {
+        color: #888;
+        font-size: 15px;
+        font-style: italic;
+        line-height: 1.5;
+        margin-top: 6px;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+
       .compose { display: flex; gap: 8px; align-items: flex-start; }
       .compose textarea { flex: 1; width: auto; font-size: 16px; resize: vertical; }
 
@@ -84,14 +109,19 @@
       <h2>Model</h2>
 
       <div class="setup">
-        <input
-          id="model"
-          type="text"
-          aria-label="Model URL"
-          value="https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
-        />
+        <select id="preset" aria-label="Model choice"></select>
+      </div>
+
+      <div class="setup">
+        <input id="model" type="text" aria-label="Model URL" />
         <button id="load" class="btn btn-a btn-sm">Load</button>
       </div>
+
+      <label class="think-toggle">
+        <input id="thinking" type="checkbox" />
+        Thinking
+        <span class="hint">a model that reasons thinks before it answers</span>
+      </label>
 
       <progress id="bar" max="100" value="0" hidden></progress>
 
@@ -117,13 +147,74 @@
       const $ = (id) => document.getElementById(id);
       const transcript = $("transcript");
 
+      // Small models that a browser can hold. think says if the model reasons,
+      // and it sets the check box when you choose the model.
+      const MODELS = [
+        {
+          name: "Qwen2.5 0.5B Instruct",
+          url: "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
+          think: false,
+        },
+        {
+          name: "LFM2.5 350M",
+          url: "https://huggingface.co/LiquidAI/LFM2.5-350M-GGUF/resolve/main/LFM2.5-350M-Q4_K_M.gguf",
+          think: false,
+        },
+        {
+          name: "Qwen3.5 0.8B",
+          url: "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q4_K_M.gguf",
+          think: true,
+        },
+        {
+          // The GGUF of this model holds the plain Gemma template, which has
+          // no place for thoughts, thus the box does nothing for it.
+          name: "Gemma 3 1B Heretic Uncensored Thinking",
+          url: "https://huggingface.co/Andycurrent/Gemma-3-1B-it-GLM-4.7-Flash-Heretic-Uncensored-Thinking_GGUF/resolve/main/Gemma-3-1B-it-GLM-4.7-Flash-Heretic-Uncensored-Thinking_Q4_k_m.gguf",
+          think: false,
+        },
+      ];
+
       // ?mode=cpu or ?mode=webgpu passes through to the worker.
       const mode = new URLSearchParams(location.search).get("mode");
       const worker = new Worker("./worker.js" + (mode ? "?mode=" + encodeURIComponent(mode) : ""));
 
       let answer = null; // the bubble that the tokens go into
+      let thoughts = null; // the bubble that the thoughts go into
       let ready = false; // a model is loaded
       let downloading = false;
+
+      // The list starts with the models above and ends with a free URL.
+      for (const [i, entry] of MODELS.entries()) {
+        $("preset").add(new Option(entry.name, String(i)));
+      }
+      $("preset").add(new Option("Another URL", "custom"));
+
+      $("model").value = MODELS[0].url;
+      $("thinking").checked = MODELS[0].think;
+
+      $("preset").onchange = () => {
+        const entry = MODELS[$("preset").value];
+        if (!entry) {
+          $("model").focus();
+          return;
+        }
+
+        $("model").value = entry.url;
+        $("thinking").checked = entry.think;
+        sendThinking();
+      };
+
+      // A URL that you type yourself is one that the list does not have.
+      $("model").oninput = () => {
+        const i = MODELS.findIndex((entry) => entry.url === $("model").value.trim());
+        $("preset").value = i < 0 ? "custom" : String(i);
+      };
+
+      function sendThinking() {
+        worker.postMessage({ kind: "thinking", on: $("thinking").checked });
+      }
+
+      $("thinking").onchange = sendThinking;
 
       function say(who, text) {
         const bubble = document.createElement("div");
@@ -132,6 +223,27 @@
         transcript.appendChild(bubble);
         bubble.scrollIntoView({ block: "end" });
         return bubble;
+      }
+
+      // thinkBubble makes the block that the thoughts go into and gives back
+      // the part that holds the text.
+      function thinkBubble() {
+        const block = document.createElement("details");
+        block.className = "thoughts";
+        block.open = true;
+
+        const title = document.createElement("summary");
+        title.textContent = "Thinking";
+        block.appendChild(title);
+
+        const text = document.createElement("div");
+        text.className = "text";
+        block.appendChild(text);
+
+        transcript.appendChild(block);
+        block.scrollIntoView({ block: "end" });
+
+        return text;
       }
 
       function status(text, bad) {
@@ -176,6 +288,11 @@
             busy(false);
             status(text);
             break;
+          case "think":
+            if (!thoughts) thoughts = thinkBubble();
+            thoughts.textContent += text;
+            thoughts.scrollIntoView({ block: "end" });
+            break;
           case "token":
             if (!answer) answer = say("them", "");
             answer.textContent += text;
@@ -183,6 +300,7 @@
             break;
           case "done":
             answer = null;
+            thoughts = null;
             busy(false);
             status(text);
             break;
@@ -192,6 +310,7 @@
             break;
           case "error":
             answer = null;
+            thoughts = null;
             downloading = false;
             bar(-1);
             busy(false);
@@ -205,6 +324,8 @@
 
         ready = false;
         downloading = true;
+        answer = null;
+        thoughts = null;
         transcript.replaceChildren();
         bar(0);
         busy(true);
@@ -219,11 +340,14 @@
         say("you", text);
         $("prompt").value = "";
         answer = null;
+        thoughts = null;
         busy(true);
-        status("thinking");
+        status("answering");
 
-        // The system prompt can change between one question and the next.
+        // The system prompt and the choice of thinking can change between
+        // one question and the next.
         worker.postMessage({ kind: "system", text: $("system").value });
+        sendThinking();
         worker.postMessage({ kind: "ask", text });
       }
 

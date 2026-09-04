@@ -46,10 +46,19 @@ make serve
 ```
 
 Open <http://localhost:8080>, push **Load**, and wait for the download of the
-model. The default model is
-[Qwen2.5-0.5B-Instruct Q4_K_M](https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF).
-It is approximately 400 MB, and the browser caches it. You can use any GGUF URL
-if the host sends CORS headers. Hugging Face sends them.
+model. The browser caches it.
+
+The list gives four small models to start with.
+
+| Model | Size | Thoughts |
+| --- | --- | --- |
+| [Qwen2.5 0.5B Instruct](https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF) | approximately 380 MB | no |
+| [LFM2.5 350M](https://huggingface.co/LiquidAI/LFM2.5-350M-GGUF) | approximately 220 MB | no |
+| [Qwen3.5 0.8B](https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF) | approximately 510 MB | yes |
+| [Gemma 3 1B Heretic Uncensored Thinking](https://huggingface.co/Andycurrent/Gemma-3-1B-it-GLM-4.7-Flash-Heretic-Uncensored-Thinking_GGUF) | approximately 770 MB | no |
+
+Choose **Another URL** to type your own. Any GGUF URL operates if the host sends
+CORS headers. Hugging Face sends them.
 
 `make build` downloads approximately 13 MB of llama.cpp into `build/`, compiles
 the Go program, and copies the page. No binary files are in the repository.
@@ -70,6 +79,12 @@ sensible answer shows that the chat template is correct.
 
 ```
 make test MODEL=~/models/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf
+```
+
+Add `--think` to let a model that reasons think before it answers.
+
+```
+node test/chat.js --dir build --model ~/models/Qwen3.5-0.8B-Q4_K_M.gguf --mt --think
 ```
 
 ## WebGPU, threads, and the service worker
@@ -130,6 +145,20 @@ The two CPU builds run in Firefox with no switch at all.
 
 ## Notes
 
+- **Thinking** lets a model that reasons think before it answers. The page shows
+  the thoughts in a block that folds away, and it keeps them out of the
+  conversation, because the template of the model drops the thoughts of the
+  turns before this one. The list sets the box for you, on for a model that
+  reasons and off for the others.
+- The box does nothing for a model that does not reason. `main.go` looks for a
+  place for thoughts in the chat template of the model and ignores the box when
+  there is none. With the box on, the prompt ends with an open block of
+  thoughts. With the box off, it ends with an empty one, which tells the model
+  to answer at once. A template such as the one of Qwen3 writes the empty block
+  itself, thus `main.go` takes that one away first.
+- The GGUF of the Gemma model in the list holds the plain Gemma template, which
+  has no place for thoughts. The box does nothing for it, even though the name
+  of the model says thinking.
 - The system prompt box tells the model how to answer. The page sends the prompt
   with each question, thus a change applies to the next answer. An empty box
   gives the default prompt again.

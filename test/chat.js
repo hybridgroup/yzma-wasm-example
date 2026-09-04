@@ -3,7 +3,7 @@
 //
 // Usage:
 //   node test/chat.js --dir build --model ~/models/some-instruct-model.gguf \
-//       [--tokens 64] [--mt]
+//       [--tokens 64] [--mt] [--think] [--system "how to answer"]
 
 const fs = require("node:fs");
 const os = require("node:os");
@@ -18,6 +18,8 @@ const dir = path.resolve(option("dir", "build"));
 const modelFile = option("model", "");
 const maxTokens = parseInt(option("tokens", "64"), 10);
 const mt = process.argv.includes("--mt");
+const think = process.argv.includes("--think");
+const system = option("system", "");
 
 // A follow-up that only makes sense if the first turn is still in the prompt.
 const questions = ["What is the capital of France?", "What river runs through it?"];
@@ -34,15 +36,21 @@ globalThis.yzmaOnMessage = (message) => onMessage(message);
 function waitFor(...kinds) {
   return new Promise((resolve) => {
     let text = "";
+    let thoughts = "";
     onMessage = (message) => {
       if (message.kind === "token") {
         text += message.text;
         process.stdout.write(message.text);
         return;
       }
+      if (message.kind === "think") {
+        thoughts += message.text;
+        process.stdout.write(message.text);
+        return;
+      }
       console.log("[" + message.kind + "] " + message.text);
       if (kinds.includes(message.kind)) {
-        resolve({ ...message, text: message.kind === "done" ? text : message.text });
+        resolve({ ...message, thoughts, text: message.kind === "done" ? text : message.text });
       }
     };
   });
@@ -86,13 +94,16 @@ async function main() {
   globalThis.yzmaOpenModel("/models/model.gguf");
   if ((await loaded).kind === "error") process.exit(1);
 
+  globalThis.yzmaSetThinking(think);
+  if (system) globalThis.yzmaSetSystem(system);
+
   for (const question of questions) {
     console.log("\n> " + question);
     const done = waitFor("done", "error");
     globalThis.yzmaAsk(question, maxTokens);
     const answer = await done;
     if (answer.kind === "error") process.exit(1);
-    if (answer.text.trim().length === 0) {
+    if ((answer.text + answer.thoughts).trim().length === 0) {
       console.error("no tokens came out");
       process.exit(1);
     }
