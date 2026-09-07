@@ -123,6 +123,10 @@ build, add `?mode=cpu` or `?mode=webgpu` to the URL. With `?mode=webgpu` the
 console of the worker says which part is missing when the loader goes to the
 CPU.
 
+`?embed` hides the paragraph at the top of the page. A page that holds this one
+in a frame, such as [yzma.ai/try/](https://yzma.ai/try/), gives its own text
+around the frame and does not want ours too.
+
 ### Firefox
 
 Firefox runs the WebGPU build. WebGPU is not yet on by default, thus set both of
