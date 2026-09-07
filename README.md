@@ -186,6 +186,19 @@ The two CPU builds run in Firefox with no switch at all.
 `.github/workflows/pages.yml` builds and deploys on each push to `main`. Set
 **Settings → Pages → Source** to **GitHub Actions** one time. That is all.
 
+`.github/workflows/assets.yml` builds the page again and puts it on the `demo`
+release as `demo.tar.gz`. The URL of that file stays the same:
+
+```
+https://github.com/hybridgroup/yzma-wasm-example/releases/download/demo/demo.tar.gz
+```
+
+[yzma.ai](https://yzma.ai/try/) takes this tarball at each build of the site.
+The last step of the workflow starts such a build through a Netlify build hook.
+Put the URL of the hook into the secret `NETLIFY_BUILD_HOOK`. Without the
+secret the workflow skips the step, and the site takes the new build at its
+next one.
+
 ## License
 
 Apache 2.0, the same as yzma. `web/min.css` ([min](https://mincss.com)) and
