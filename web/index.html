@@ -11,6 +11,14 @@
     <script src="coi-serviceworker.js"></script>
 
     <link rel="stylesheet" href="min.css" />
+
+    <!-- A page such as yzma.ai/try/ gives its own text. ?embed hides ours. -->
+    <script>
+      if (new URLSearchParams(location.search).has("embed")) {
+        document.documentElement.classList.add("embed");
+      }
+    </script>
+
     <style>
       body { color: #222; }
       .container { max-width: 46rem; }
@@ -29,6 +37,9 @@
       .think-toggle { display: block; font-size: 15px; margin-top: 10px; }
       .think-toggle input { margin-right: 6px; vertical-align: -1px; }
       .think-toggle .hint { color: #999; font-size: 13px; }
+
+      /* A page that holds the demo in a frame gives its own text. */
+      .embed #intro { display: none; }
 
       /* min.css does not dim a button that the page turned off. */
       .btn:disabled, .btn:disabled:hover { background: #ccc; cursor: default; }
@@ -99,7 +110,7 @@
     </div>
 
     <div class="container">
-      <p>
+      <p id="intro">
         This page runs a GGUF language model completely in the local browser using WebAssembly. There is no server, no API key, and no data goes anywhere.
         Uses GPU with WebGPU when available, otherwise uses CPU. Chrome and Edge have WebGPU support, Firefox currently CPU only.
         Written in Go using <a target="_blank" href="https://github.com/hybridgroup/yzma">yzma</a> on <a target="_blank" href="https://tinygo.org/">TinyGo</a>.
