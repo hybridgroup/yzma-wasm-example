@@ -64,11 +64,12 @@ CORS headers. Hugging Face sends them.
 the Go program, and copies the page. No binary files are in the repository.
 
 The download comes from
-[llama-cpp-builder](https://github.com/hybridgroup/llama-cpp-builder) and takes
-the newest build. To pin a build, name its tag.
+[llama-cpp-builder](https://github.com/hybridgroup/llama-cpp-builder). It takes
+v0.5.0, the release that yzma v1.28.0 installs. To take another build, name its
+tag, or use `latest` for the newest nightly build.
 
 ```
-make build LLAMA_VERSION=b10780
+make build LLAMA_VERSION=latest
 ```
 
 ## The test

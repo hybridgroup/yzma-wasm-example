@@ -4,9 +4,9 @@
 BUILD_DIR ?= build
 PORT ?= 8080
 
-# The build of llama.cpp from llama-cpp-builder. "latest" takes the newest
-# one. Name a tag such as b10780 to pin it.
-LLAMA_VERSION ?= latest
+# The build of llama.cpp from llama-cpp-builder. v0.5.0 is the release that
+# yzma v1.28.0 installs. "latest" takes the newest nightly build.
+LLAMA_VERSION ?= v0.5.0
 
 # Take yzma-loader.js from the module that go.mod pins, not from a copy
 # here that can drift.
