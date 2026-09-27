@@ -1,7 +1,7 @@
 //go:build js && wasm
 
 // Package main is a chat that runs a language model in the browser.
-// It drives llama.cpp through yzma and sends each piece of the answer to the page.
+// It drives llama.cpp through yzma and streams the answer to the page.
 package main
 
 import (
@@ -15,28 +15,28 @@ import (
 )
 
 const (
-	// modelPath is where the model goes in the filesystem of llama.cpp.
+	// modelPath is where the model goes in the llama.cpp filesystem.
 	modelPath = "/models/model.gguf"
 
-	// defaultSystem opens a conversation until the page sends another one.
+	// defaultSystem is the system message until the page sends another one.
 	defaultSystem = "You are a helpful assistant running inside a web browser. Keep your answers short."
 
 	nCtx   = 4096
 	nBatch = 512
 
-	// defaultMaxTokens caps one answer. The page can ask for another number.
+	// defaultMaxTokens caps one answer. The page can ask for a different limit.
 	defaultMaxTokens = 512
 
-	// thinkingMaxTokens caps one answer with thoughts, which is much longer
+	// thinkingMaxTokens caps an answer with thinking. It is much larger
 	// because the thoughts come before the reply.
 	thinkingMaxTokens = 1536
 
-	// thinkOpen and thinkClose mark the thoughts of a model that reasons.
+	// thinkOpen and thinkClose mark the thoughts of a reasoning model.
 	thinkOpen  = "<think>"
 	thinkClose = "</think>"
 )
 
-// turn is one message of the conversation.
+// turn is one message in the conversation.
 type turn struct {
 	Role    string
 	Content string
@@ -50,8 +50,8 @@ var (
 
 	history = []turn{{Role: "system", Content: defaultSystem}}
 
-	// reasons is true when the chat template of the model has a place for
-	// thoughts. thinking is what the page asks for.
+	// reasons is true when the model chat template supports thinking.
+	// thinking is what the page asks for.
 	reasons  bool
 	thinking bool
 )
@@ -80,7 +80,7 @@ func main() {
 	<-make(chan struct{})
 }
 
-// loadModel(url) gets a model over the network and makes a context for it.
+// loadModel(url) downloads a model and creates a context for it.
 func loadModel(this js.Value, args []js.Value) any {
 	if len(args) < 1 {
 		post("error", "loadModel needs a URL")
@@ -107,8 +107,8 @@ func loadModel(this js.Value, args []js.Value) any {
 	return nil
 }
 
-// openModel(path) loads a model that is already in the filesystem of llama.cpp.
-// The page downloads one instead, but the test puts it there itself.
+// openModel(path) loads a model that is already in the llama.cpp filesystem.
+// The page downloads its model, but the test writes the file there directly.
 func openModel(this js.Value, args []js.Value) any {
 	path := modelPath
 	if len(args) > 0 && args[0].Truthy() {
@@ -120,14 +120,14 @@ func openModel(this js.Value, args []js.Value) any {
 	return nil
 }
 
-// open loads the model at path, makes a context, and builds the sampler.
+// open loads the model at path and creates a context.
 func open(path string) {
 	post("status", "loading the model")
 
 	params := llamawasm.ModelDefaultParams()
 
-	// A build with WebGPU has a device, so put every layer on it.
-	// A build on the CPU has none, and the value does nothing.
+	// The WebGPU build has a device, so put every layer on it.
+	// The CPU builds have none, and the value is ignored.
 	if llamawasm.GPUDevice() != "" {
 		params.NGpuLayers = 999
 	}
@@ -149,20 +149,19 @@ func open(path string) {
 
 	vocab = llamawasm.ModelGetVocab(model)
 
-	// The sampler belongs to the model, and each answer makes a new one.
+	// The sampler is tied to the model, and each answer creates a new one.
 	freeSampler()
 
 	history = history[:1]
 
 	template := llamawasm.ModelChatTemplate(model, "")
 
-	// A template that writes the marker itself belongs to a model that
-	// reasons with it. For every other model the choice of the page does
-	// nothing, because a marker that the model does not know makes the
-	// answer worse. LFM2.5 is such a model.
+	// Only a template that writes the marker itself belongs to a reasoning
+	// model. For other models such as LFM2.5 the thinking toggle is ignored,
+	// because an unknown marker makes the answer worse.
 	reasons = strings.Contains(template, thinkOpen)
 
-	// A base model has no chat template, and its answers in a chat are poor.
+	// A base model has no chat template and gives poor chat answers.
 	if template == "" {
 		post("status", "this model has no chat template, so the answers will wander")
 	}
@@ -170,11 +169,11 @@ func open(path string) {
 	post("loaded", llamawasm.ModelDesc(model)+", "+backendReport())
 }
 
-// makeSampler makes the chain of samplers for one answer. This chain gives the
-// variety that a chat needs and the greedy sampler does not.
+// makeSampler creates the sampler chain for one answer. It gives the variety
+// a chat needs, which the greedy sampler does not.
 //
-// The seed comes at each answer, and no answer resets the chain, thus the same
-// question twice does not give the same words twice.
+// Each answer gets a new seed, so asking the same question twice does not
+// give the same words twice.
 func makeSampler() {
 	freeSampler()
 
@@ -186,7 +185,7 @@ func makeSampler() {
 	llamawasm.SamplerChainAdd(sampler, llamawasm.SamplerInitDist(uint32(time.Now().UnixNano())))
 }
 
-// freeSampler gives the chain of the answer before this one back.
+// freeSampler frees the sampler chain of the previous answer.
 func freeSampler() {
 	if sampler != 0 {
 		llamawasm.SamplerFree(sampler)
@@ -194,7 +193,7 @@ func freeSampler() {
 	}
 }
 
-// backendReport says what does the computation.
+// backendReport describes the backend that runs the model.
 func backendReport() string {
 	if device := llamawasm.GPUDevice(); device != "" {
 		return fmt.Sprintf("backend: %s (%s)", llamawasm.Backend(), device)
@@ -202,8 +201,8 @@ func backendReport() string {
 	return fmt.Sprintf("backend: %s, %d threads", llamawasm.Backend(), llamawasm.Threads())
 }
 
-// setSystem(text) replaces the system message. An empty text gives the default
-// one back. The next answer uses it.
+// setSystem(text) replaces the system message, starting with the next answer.
+// An empty text restores the default.
 func setSystem(this js.Value, args []js.Value) any {
 	text := defaultSystem
 	if len(args) > 0 && args[0].Truthy() {
@@ -217,22 +216,21 @@ func setSystem(this js.Value, args []js.Value) any {
 	return nil
 }
 
-// setThinking(on) says if a model that reasons can think before it answers.
-// A model that does not reason is not affected.
+// setThinking(on) sets whether a reasoning model thinks before it answers.
+// Other models are not affected.
 func setThinking(this js.Value, args []js.Value) any {
 	thinking = len(args) > 0 && args[0].Truthy()
 	return nil
 }
 
-// reset() forgets the conversation and starts again from the system message.
+// reset() clears the conversation and keeps only the system message.
 func reset(this js.Value, args []js.Value) any {
 	history = history[:1]
 	post("reset", "")
 	return nil
 }
 
-// ask(text, maxTokens) adds a question and sends the answer to the page piece
-// by piece.
+// ask(text, maxTokens) adds a question and streams the answer to the page.
 func ask(this js.Value, args []js.Value) any {
 	if len(args) < 1 {
 		post("error", "ask needs a question")
@@ -262,8 +260,8 @@ func ask(this js.Value, args []js.Value) any {
 			return
 		}
 
-		// The whole conversation goes in again each turn, so the state of
-		// the last turn has to go.
+		// Each turn sends the whole conversation again, so clear the state
+		// of the last turn.
 		if err := llamawasm.MemoryClear(ctx, true); err != nil {
 			post("error", err.Error())
 			return
@@ -271,8 +269,8 @@ func ask(this js.Value, args []js.Value) any {
 		makeSampler()
 
 		var (
-			// The prompt opens the block of thoughts, thus the answer
-			// starts inside it.
+			// The prompt opens the thinking block, so the answer starts
+			// inside it.
 			answer = splitter{think: reasons && thinking}
 			count  int32
 		)
@@ -302,19 +300,19 @@ func ask(this js.Value, args []js.Value) any {
 
 		answer.close()
 
-		// Only the reply goes into the history. The template of the model
-		// drops the thoughts of the turns before this one.
+		// Only the reply goes into the history. The model template drops
+		// the thoughts of earlier turns anyway.
 		history = append(history, turn{Role: "assistant", Content: answer.reply.String()})
 
-		// A model that stops at the first token gives nothing to read. Say so,
-		// because a count of zero alone looks like the page did nothing.
+		// A model that stops at the first token gives nothing to read. Report
+		// it, because a count of zero alone looks like the page did nothing.
 		if count == 0 {
 			post("error", "the model gave no answer, so the backend may compute wrong values")
 			return
 		}
 
-		// A run that spends every token on the thoughts leaves no reply, and
-		// an empty answer alone looks like a failure.
+		// A run that spends every token on thinking leaves no reply, and an
+		// empty answer alone looks like a failure.
 		note := ""
 		if reasons && thinking && answer.reply.Len() == 0 {
 			note = ", the thoughts used every token"
@@ -330,23 +328,23 @@ func ask(this js.Value, args []js.Value) any {
 	return nil
 }
 
-// prompt puts the conversation into the chat format of the model and tokenizes it.
-// It drops the oldest turns until what is left has room for an answer.
+// prompt formats the conversation with the model chat template and tokenizes it.
+// It drops the oldest turns until there is room for an answer.
 func prompt(maxTokens int32) []llamawasm.Token {
 	for {
 		var text strings.Builder
 		for i, message := range history {
 			formatted, err := llamawasm.ChatApplyTemplate(model, message.Role, message.Content, i == len(history)-1)
 			if err != nil {
-				// The model has no template, or llama.cpp is too old to have
-				// the call. The bare question is all that is left.
+				// The model has no template, or llama.cpp is too old for this
+				// call. Fall back to the bare question.
 				return llamawasm.Tokenize(vocab, history[len(history)-1].Content, true, false)
 			}
 			text.WriteString(formatted)
 		}
 
-		// parseSpecial has to be true, or the markers of the template
-		// tokenize as ordinary text and the model sees no chat.
+		// parseSpecial must be true, or the template markers tokenize as
+		// plain text and the model sees no chat.
 		tokens := llamawasm.Tokenize(vocab, thoughtPrefill(text.String()), true, true)
 
 		if int32(len(tokens)) <= nCtx-maxTokens || len(history) <= 2 {
@@ -362,13 +360,12 @@ func prompt(maxTokens int32) []llamawasm.Token {
 	}
 }
 
-// thoughtPrefill puts the choice of the page at the end of the prompt.
+// thoughtPrefill ends the prompt with the thinking block the page asks for.
 //
-// A template that knows about thoughts writes the start of them itself, and
-// a template such as the one of Qwen3 writes an empty block when nobody asks
-// for thoughts. yzma renders one message at a time and can pass no options to
-// the template, thus this takes the block that is there away and writes the
-// block that the page asks for.
+// A template that supports thinking may write its own block, and Qwen3 writes
+// an empty one when thinking is off. yzma renders one message at a time and
+// cannot pass options to the template, so this removes that block and writes
+// the one the page wants.
 func thoughtPrefill(text string) string {
 	if !reasons {
 		return text
@@ -377,7 +374,7 @@ func thoughtPrefill(text string) string {
 	text = stripEmptyThoughts(text)
 
 	// An open block makes the model think. An empty block makes it answer
-	// at once.
+	// right away.
 	if thinking {
 		return text + thinkOpen + "\n"
 	}
@@ -385,7 +382,7 @@ func thoughtPrefill(text string) string {
 	return text + thinkOpen + "\n\n" + thinkClose + "\n\n"
 }
 
-// stripEmptyThoughts takes an empty block of thoughts off the end of the text.
+// stripEmptyThoughts removes an empty thinking block from the end of text.
 func stripEmptyThoughts(text string) string {
 	trimmed := strings.TrimRight(text, " \t\r\n")
 	if !strings.HasSuffix(trimmed, thinkClose) {
@@ -402,18 +399,18 @@ func stripEmptyThoughts(text string) string {
 	return body[:start]
 }
 
-// splitter sends the answer to the page piece by piece. It keeps the thoughts
-// of the model apart from the reply, because the page marks the two in
-// different ways and only the reply goes into the history.
+// splitter streams the answer to the page. It keeps the thoughts separate
+// from the reply, because the page shows them differently and only the reply
+// goes into the history.
 type splitter struct {
 	buf   string
 	think bool
 	reply strings.Builder
 }
 
-// write takes one piece of the answer and sends what is certain. It holds the
-// last few bytes back, because a marker or a character can arrive in two
-// pieces.
+// write takes one piece of the answer and sends what is complete. It holds
+// back the last few bytes, because a marker or a character can be split
+// across two pieces.
 func (s *splitter) write(piece string) {
 	s.buf += piece
 
@@ -436,8 +433,8 @@ func (s *splitter) write(piece string) {
 	if keep := len(thinkClose) - 1; len(s.buf) > keep {
 		cut := len(s.buf) - keep
 
-		// A character of more than one byte can come in two pieces, thus
-		// the cut goes back to the start of it.
+		// A multibyte character can be split across pieces, so move the cut
+		// back to its first byte.
 		for cut > 0 && !utf8.RuneStart(s.buf[cut]) {
 			cut--
 		}
@@ -453,7 +450,7 @@ func (s *splitter) close() {
 	s.buf = ""
 }
 
-// emit sends one part of the answer under the kind that fits it.
+// emit sends one part of the answer as a think or token message.
 func (s *splitter) emit(text string) {
 	if text == "" {
 		return

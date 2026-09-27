@@ -1,5 +1,5 @@
 # Build the page and put it on the "demo" release as demo.tar.gz.
-# The yzma.ai site gets this file at each build.
+# The yzma.ai site fetches this file on each build.
 name: assets
 
 on:
@@ -54,8 +54,8 @@ jobs:
               --notes "The newest build of the page."
           gh release upload demo demo.tar.gz --clobber
 
-      # The site rebuilds only when something starts it. The secret is
-      # optional, and without it the site takes the new build at its next one.
+      # The site only rebuilds when triggered. The secret is optional, and
+      # without it the site picks up the new build on its next rebuild.
       - name: Start a build of the site
         if: env.HOOK != ''
         run: curl -fsS -X POST -d '{}' "$HOOK"

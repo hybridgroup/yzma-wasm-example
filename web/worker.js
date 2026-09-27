@@ -6,24 +6,24 @@
 // kind ready, status, progress, loaded, token, think, done, reset, system, or
 // error.
 
-// The build with more than one thread runs this script again for each thread.
-// Such a worker has the name "em-pthread" and must only load llama.cpp.
+// The multithreaded build runs this script again for each thread. Those
+// workers are named "em-pthread" and must only load llama.cpp.
 const isThread = globalThis.name === "em-pthread";
 
 self.yzmaBase = ".";
 
-// The page chooses the backend with a query on the URL of this worker.
-// yzma-loader.js takes the values auto, webgpu, or cpu.
+// The page picks the backend with a query on this worker URL.
+// yzma-loader.js accepts auto, webgpu, or cpu.
 const workerQuery = new URLSearchParams((self.location.search || "").slice(1));
 
-// yzma-loader.js takes the CPU in Firefox by itself, because llama.cpp
-// computes wrong values with WebGPU there. ?mode=webgpu still gives the GPU.
+// yzma-loader.js picks the CPU in Firefox by default, because WebGPU is
+// slow there. ?mode=webgpu still uses the GPU.
 if (workerQuery.get("mode")) {
   self.yzmaMode = workerQuery.get("mode");
 }
 
-// A thread has no choice to make. This keeps it from asking the browser
-// about the GPU once per thread, which is slow.
+// Threads always use the CPU. This avoids asking the browser about the GPU
+// once per thread, which is slow.
 if (isThread) {
   self.yzmaMode = "cpu";
 }
@@ -31,7 +31,7 @@ if (isThread) {
 importScripts("./yzma-loader.js");
 
 if (!isThread) {
-  // A failure with nobody to catch it must reach the page.
+  // Send uncaught errors to the page.
   self.onerror = (event) => {
     self.postMessage({ kind: "error", text: String((event && event.message) || event) });
   };
@@ -41,8 +41,8 @@ if (!isThread) {
 
   importScripts("./wasm_exec.js");
 
-  // The Go program sends a message of kind "ready" when it has set its
-  // functions. Starting the backend takes much longer with WebGPU.
+  // The Go program sends a "ready" message once its functions are set.
+  // Starting the backend takes much longer with WebGPU.
   let programIsReady;
   const programReady = new Promise((resolve) => {
     programIsReady = resolve;
