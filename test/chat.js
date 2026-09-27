@@ -1,5 +1,5 @@
 // chat.js holds a two turn conversation in Node, with no browser.
-// It tests the chat template, which is correct if the answers make sense.
+// It tests the chat template. If the answers make sense, the template is correct.
 //
 // Usage:
 //   node test/chat.js --dir build --model ~/models/some-instruct-model.gguf \
@@ -32,7 +32,7 @@ if (!modelFile) {
 let onMessage = () => {};
 globalThis.yzmaOnMessage = (message) => onMessage(message);
 
-// waitFor resolves on the first message of one of these kinds.
+// waitFor resolves on the first message of any of these kinds.
 function waitFor(...kinds) {
   return new Promise((resolve) => {
     let text = "";

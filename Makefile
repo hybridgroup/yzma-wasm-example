@@ -1,21 +1,21 @@
 # Build the page into build/, then serve it.
-# The first build downloads about 13 MB of llama.cpp, and then caches it.
+# The first build downloads about 13 MB of llama.cpp and caches it.
 
 BUILD_DIR ?= build
 PORT ?= 8080
 
-# The build of llama.cpp from llama-cpp-builder. v0.5.0 is the release that
-# yzma v1.28.0 installs. "latest" takes the newest nightly build.
+# The llama.cpp build from llama-cpp-builder. v0.5.0 is the release that
+# yzma v1.28.0 installs. "latest" gets the newest nightly build.
 LLAMA_VERSION ?= v0.5.0
 
-# Take yzma-loader.js from the module that go.mod pins, not from a copy
-# here that can drift.
+# Use yzma-loader.js from the module that go.mod pins, not a local copy
+# that can drift.
 YZMA_DIR = $(shell go list -m -f "{{.Dir}}" github.com/hybridgroup/yzma)
 
-# The yzma command has to be the version that go.mod pins, because the two
-# move together.
+# The yzma command must match the version that go.mod pins, because the two
+# change together.
 YZMA_VERSION = $(shell go list -m -f "{{.Version}}" github.com/hybridgroup/yzma)
-# GOBIN when it is set, and GOPATH/bin when it is not.
+# GOBIN if set, otherwise GOPATH/bin.
 YZMA_BIN = $(firstword $(shell go env GOBIN) $(shell go env GOPATH)/bin)
 YZMA = $(YZMA_BIN)/yzma
 
@@ -25,7 +25,7 @@ all: build
 
 build: llama.cpp program assets
 
-# This brings down all three WebAssembly builds. yzma-loader.js takes the
+# This downloads all three WebAssembly builds. yzma-loader.js picks the
 # best one at run time.
 llama.cpp:
 	go install github.com/hybridgroup/yzma@$(YZMA_VERSION)
@@ -52,7 +52,7 @@ check:
 	GOOS=js GOARCH=wasm go build -o /dev/null .
 	GOOS=js GOARCH=wasm go vet ./...
 
-# test holds a two turn conversation in Node. It needs a model with a chat
+# test runs a two turn conversation in Node. It needs a model with a chat
 # template.
 #
 #   make test MODEL=~/models/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf

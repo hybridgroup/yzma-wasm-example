@@ -1,5 +1,5 @@
 # Build the page with TinyGo and put it on GitHub Pages.
-# Nothing binary lives in the repo, so llama.cpp comes down here.
+# The repo has no binaries, so llama.cpp is downloaded here.
 name: pages
 
 on:

@@ -12,7 +12,7 @@
 
     <link rel="stylesheet" href="min.css" />
 
-    <!-- A page such as yzma.ai/try/ gives its own text. ?embed hides ours. -->
+    <!-- A host page such as yzma.ai/try/ has its own text. ?embed hides ours. -->
     <script>
       if (new URLSearchParams(location.search).has("embed")) {
         document.documentElement.classList.add("embed");
@@ -38,10 +38,10 @@
       .think-toggle input { margin-right: 6px; vertical-align: -1px; }
       .think-toggle .hint { color: #999; font-size: 13px; }
 
-      /* A page that holds the demo in a frame gives its own text. */
+      /* A page that embeds the demo in a frame has its own text. */
       .embed #intro { display: none; }
 
-      /* min.css does not dim a button that the page turned off. */
+      /* min.css does not dim disabled buttons. */
       .btn:disabled, .btn:disabled:hover { background: #ccc; cursor: default; }
 
       #bar {
@@ -52,7 +52,7 @@
         margin-top: 10px;
         width: 100%;
       }
-      /* An id beats the [hidden] rule of the browser, so say it again. */
+      /* The id selector overrides the browser [hidden] rule, so repeat it. */
       #bar[hidden] { display: none; }
       #bar::-webkit-progress-bar { background: #eee; border-radius: 5px; }
       #bar::-webkit-progress-value { background: #0ae; border-radius: 5px; }
@@ -74,8 +74,8 @@
       }
       .msg.you { background: #eee; border-left-color: #999; }
 
-      /* The thoughts of the model are quieter than the reply, and they fold
-         away because they can run long. */
+      /* Thoughts are dimmer than the reply, and they collapse because they
+         can run long. */
       .thoughts {
         background: #fafafa;
         border-left: 3px solid #ddd;
@@ -158,8 +158,8 @@
       const $ = (id) => document.getElementById(id);
       const transcript = $("transcript");
 
-      // Small models that a browser can hold. think says if the model reasons,
-      // and it sets the check box when you choose the model.
+      // Small models that fit in a browser. think says whether the model reasons,
+      // and sets the checkbox when you choose the model.
       const MODELS = [
         {
           name: "Qwen2.5 0.5B Instruct",
@@ -177,8 +177,8 @@
           think: true,
         },
         {
-          // The GGUF of this model holds the plain Gemma template, which has
-          // no place for thoughts, thus the box does nothing for it.
+          // This GGUF has the plain Gemma template, which does not support
+          // thinking, so the checkbox does nothing for it.
           name: "Gemma 3 1B Heretic Uncensored Thinking",
           url: "https://huggingface.co/Andycurrent/Gemma-3-1B-it-GLM-4.7-Flash-Heretic-Uncensored-Thinking_GGUF/resolve/main/Gemma-3-1B-it-GLM-4.7-Flash-Heretic-Uncensored-Thinking_Q4_k_m.gguf",
           think: false,
@@ -194,7 +194,7 @@
       let ready = false; // a model is loaded
       let downloading = false;
 
-      // The list starts with the models above and ends with a free URL.
+      // The list has the models above, then a custom URL option.
       for (const [i, entry] of MODELS.entries()) {
         $("preset").add(new Option(entry.name, String(i)));
       }
@@ -215,7 +215,7 @@
         sendThinking();
       };
 
-      // A URL that you type yourself is one that the list does not have.
+      // A custom URL is one that is not in the list.
       $("model").oninput = () => {
         const i = MODELS.findIndex((entry) => entry.url === $("model").value.trim());
         $("preset").value = i < 0 ? "custom" : String(i);
@@ -236,8 +236,8 @@
         return bubble;
       }
 
-      // thinkBubble makes the block that the thoughts go into and gives back
-      // the part that holds the text.
+      // thinkBubble creates the block for the thoughts and returns the element
+      // that holds the text.
       function thinkBubble() {
         const block = document.createElement("details");
         block.className = "thoughts";
@@ -262,13 +262,13 @@
         $("status").className = bad ? "bad" : "";
       }
 
-      // bar shows how much of the model came down. A percent of -1 hides it.
+      // bar shows the model download progress. A percent of -1 hides it.
       function bar(percent) {
         $("bar").hidden = percent < 0;
         $("bar").value = percent < 0 ? 0 : percent;
       }
 
-      // busy turns the controls off while the model works.
+      // busy disables the controls while the model works.
       function busy(yes) {
         $("send").disabled = yes || !ready;
         $("reset").disabled = yes || !ready;
@@ -355,8 +355,8 @@
         busy(true);
         status("answering");
 
-        // The system prompt and the choice of thinking can change between
-        // one question and the next.
+        // The system prompt and the thinking choice can change between
+        // questions.
         worker.postMessage({ kind: "system", text: $("system").value });
         sendThinking();
         worker.postMessage({ kind: "ask", text });
@@ -368,7 +368,7 @@
         worker.postMessage({ kind: "reset" });
       };
 
-      // Enter sends, shift-Enter makes a new line.
+      // Enter sends, Shift+Enter adds a new line.
       $("prompt").onkeydown = (event) => {
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
