@@ -63,7 +63,7 @@ program, and copies the page. The repository has no binary files.
 
 The download comes from
 [llama-cpp-builder](https://github.com/hybridgroup/llama-cpp-builder). It uses
-v0.5.0, the release that yzma v1.28.0 installs. To use another build, pass its
+v0.6.0, the release that yzma v1.29.0 installs. To use another build, pass its
 tag, or `latest` for the newest nightly build.
 
 ```
@@ -120,6 +120,9 @@ headers. Hugging Face does.
 The top right of the page shows the selected build. To force a build, add
 `?mode=cpu` or `?mode=webgpu` to the URL. With `?mode=webgpu`, the worker console
 reports what is missing when the loader falls back to the CPU.
+
+On a computer with two GPUs, add `?gpu=high-performance` or `?gpu=low-power`
+to pick one. The loader tests that GPU and llama.cpp uses the same one.
 
 `?embed` hides the paragraph at the top of the page. A page that embeds this one
 in a frame, such as [yzma.ai/try/](https://yzma.ai/try/), has its own text

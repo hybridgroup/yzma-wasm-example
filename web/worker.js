@@ -22,6 +22,11 @@ if (workerQuery.get("mode")) {
   self.yzmaMode = workerQuery.get("mode");
 }
 
+// ?gpu=high-performance or ?gpu=low-power picks the GPU on a computer with two.
+if (workerQuery.get("gpu")) {
+  self.yzmaPowerPreference = workerQuery.get("gpu");
+}
+
 // Threads always use the CPU. This avoids asking the browser about the GPU
 // once per thread, which is slow.
 if (isThread) {
