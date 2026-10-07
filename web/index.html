@@ -185,9 +185,8 @@
         },
       ];
 
-      // ?mode=cpu or ?mode=webgpu passes through to the worker.
-      const mode = new URLSearchParams(location.search).get("mode");
-      const worker = new Worker("./worker.js" + (mode ? "?mode=" + encodeURIComponent(mode) : ""));
+      // The query, such as ?mode=webgpu or ?gpu=low-power, passes through to the worker.
+      const worker = new Worker("./worker.js" + location.search);
 
       let answer = null; // the bubble that the tokens go into
       let thoughts = null; // the bubble that the thoughts go into

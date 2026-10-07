@@ -288,7 +288,6 @@ func ask(this js.Value, args []js.Value) any {
 			if llamawasm.VocabIsEOG(vocab, token) {
 				break
 			}
-			llamawasm.SamplerAccept(sampler, token)
 
 			if n := llamawasm.TokenToPiece(vocab, token, buf, 0, true); n > 0 {
 				answer.write(string(buf[:n]))
