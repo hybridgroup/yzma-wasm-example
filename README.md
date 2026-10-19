@@ -63,7 +63,7 @@ program, and copies the page. The repository has no binary files.
 
 The download comes from
 [llama-cpp-builder](https://github.com/hybridgroup/llama-cpp-builder). It uses
-v0.6.0, the release that yzma v1.29.0 installs. To use another build, pass its
+v0.7.0, the release that yzma v1.30.0 installs. To use another build, pass its
 tag, or `latest` for the newest nightly build.
 
 ```
