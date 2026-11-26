@@ -4,9 +4,9 @@
 BUILD_DIR ?= build
 PORT ?= 8080
 
-# The llama.cpp build from llama-cpp-builder. v1.0.0 is the release that
-# yzma v1.33.0 installs. "latest" gets the newest nightly build.
-LLAMA_VERSION ?= v1.0.0
+# The llama.cpp build from llama-cpp-builder. v1.1.0 is the release that
+# yzma v1.34.0 installs. "latest" gets the newest nightly build.
+LLAMA_VERSION ?= v1.1.0
 
 # Use yzma-loader.js from the module that go.mod pins, not a local copy
 # that can drift.
